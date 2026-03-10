@@ -1,6 +1,6 @@
 # ATLAS
 
-Algebraic Transform for Low-constraint Arithmetic Structures
+**A**lgebraic **T**ransform for **L**ow-constraint **A**rithmetic **S**tructures
 
 ATLAS is a cryptographic library implementing constraint-friendly hash-to-group constructions optimized for zero-knowledge proof systems.
 The project focuses on reducing the arithmetic constraint cost required to map arbitrary inputs into elliptic curve groups inside ZK circuits.
