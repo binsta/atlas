@@ -1,0 +1,13 @@
+[package]
+name        = "atlas-circuits"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+atlas-core         = { workspace = true }
+atlas-map-to-curve = { workspace = true }
+thiserror          = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }

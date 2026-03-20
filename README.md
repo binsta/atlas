@@ -2,163 +2,101 @@
 
 **A**lgebraic **T**ransform for **L**ow-constraint **A**rithmetic **S**tructures
 
-ATLAS is a cryptographic library implementing constraint-friendly hash-to-group constructions optimized for zero-knowledge proof systems.
-The project focuses on reducing the arithmetic constraint cost required to map arbitrary inputs into elliptic curve groups inside ZK circuits.
+A Rust implementation of the paper:
 
-ATLAS is inspired by recent research on constraint-friendly hash-to-group algorithms that significantly reduce proving costs compared to traditional hash-to-curve implementations.
-
----
-
-Motivation
-
-Many cryptographic protocols require hashing arbitrary data into elliptic curve groups.
-
-Examples include:
-
-- zero-knowledge proofs
-- anonymous credentials
-- privacy-preserving authentication
-- threshold signatures
-- distributed randomness
-
-However, traditional hash-to-curve constructions are expensive inside ZK circuits.
-
-They typically involve:
-
-- multiple field inversions
-- complex curve mapping
-- high constraint counts
-
-This increases:
-
-- proving time
-- circuit size
-- gas cost for on-chain verification
-
-ATLAS addresses this by implementing constraint-efficient algebraic mappings designed specifically for ZK-friendly environments.
+> **Constraint-Friendly Map-to-Elliptic-Curve-Group Relations and Their Applications**
+> Groth, Malvai, Miller, Zhang (2025) — [ePrint 2025/1503](https://eprint.iacr.org/2025/1503)
 
 ---
 
-Goals
+## What is this?
 
-ATLAS aims to provide:
+Traditional hash-to-curve constructions combine an inner cryptographic hash
+(SHA-256, Poseidon, MiMC) with an outer map-to-curve. The inner hash is
+expensive in ZK circuits:
 
-- efficient hash-to-group primitives
-- low-constraint implementations for ZK circuits
-- modular cryptographic components
-- benchmarking tools for constraint cost analysis
+| Construction       | Constraints per invocation |
+|--------------------|---------------------------|
+| SHA-256            | ~7,095                    |
+| Poseidon           | ~948                      |
+| MiMC               | ~351                      |
+| **ATLAS (this)**   | **~30**                   |
 
----
-
-Architecture
-
-ATLAS is structured as a modular Rust library:
-```
-atlas/
-├── hash_to_field/
-├── map_to_curve/
-├── subgroup/
-├── circuits/
-└── benchmarks/
-```
-Modules
-
-`hash_to_feild`
-
-Transforms arbitrary input data into finite field elements.
-
-`map_to_curve`
-
-Implements optimized curve mapping algorithms designed for ZK efficiency.
-
-`subgroup`
-
-Ensures mapped points lie in the correct prime subgroup.
-
-circuits
-
-ZK-circuit implementations of the ATLAS primitives.
-
-benchmarks
-
-Tools to measure:
-
-- constraint count
-- proving time
-- runtime performance
+ATLAS bypasses the inner hash entirely. Security is proven in the
+**Elliptic Curve Generic Group Model (EC-GGM)**.
 
 ---
 
-Example Usage
-```rust
-use atlas::hash_to_group;
+## How it works
 
-let message = b"hello world";
+Given message `m ∈ M` and tweak bound `T`, the relation `R_M2G` is:
+(m, (x,y), (k,z)) ∈ R_M2G  iff
+k ∈ [0, T)
+x = t + m*T
+y = z²         (z is the sqrt witness)
+(x, y) ∈ G     (valid curve point)
+The tweak `k` becomes the ZK witness — constant time from the verifier's perspective.
 
-let point = hash_to_group(message);
-
-println!("Mapped group element: {:?}", point);
-```
 ---
 
-Benchmarks
+## Crates
 
-ATLAS focuses on reducing constraint cost in ZK circuits.
+| Crate                | Description                              | Paper    |
+|----------------------|------------------------------------------|----------|
+| `atlas-core`         | Errors, field helpers, MemoryRecord      | §2       |
+| `atlas-map-to-curve` | Increment-and-check relation             | §4       |
+| `atlas-multiset-hash`| Multiset hash for zkVM memory checking   | §5       |
+| `atlas-bls`          | Relational BLS signatures for zkPoS      | §6       |
+| `atlas-circuits`     | Constraint cost comparison               | §7       |
 
-Typical improvements include:
+---
 
-- significantly fewer circuit constraints
-- faster proof generation
-- smaller proving circuits
+## Curve
 
-Benchmarks can be executed using:
+Uses the **Grumpkin** curve (`y² = x³ - 17`) for map-to-curve.
+Grumpkin's base field = BN254's scalar field, making it
+native to Barretenberg/Noir ZK circuits.
+
+BLS signatures use BN254 G1/G2 with the full pairing check:
+e(σ, g2) = e(hm, vk)
+---
+
+## Examples
+
 ```bash
-cargo bench
+# Map a message to a Grumpkin group element
+cargo run --example map_to_group
+
+# zkVM offline memory consistency checking
+cargo run --example zkvm_memory
+
+# Relational BLS signature (sign + verify with pairing)
+cargo run --example bls_signature
+
+# Multiset hash properties
+cargo run --example multiset_hash
+
+# Constraint cost comparison (Table 2 from paper)
+cargo run --example constraint_cost
 ```
----
 
-Roadmap
+## Security
+For zkVM memory checking (§5.4):
 
-- hash-to-field implementation
-- optimized map-to-curve algorithm
-- circuit integration for popular ZK frameworks
-- constraint benchmarking
-- support for multiple curves
+- Message space: |M| ≤ 2^100 (97-bit RISC-V records)
+- Tweak bound: T = 256
+- Security: >120 bits (Theorem 3)
 
----
+For zkPoS BLS (§6.4):
 
-Applications
+- Message space: |M| ≤ 2^120
+- Tweak bound: T = 128
+- Security: ≥120 bits (Theorem 5)
 
-ATLAS primitives can be used in:
+### Tests
+```bash
+cargo test --workspace
+```
 
-- ZK authentication systems
-- decentralized identity
-- privacy-preserving voting
-- anonymous credentials
-- secure multiparty computation
-
----
-
-Research Context
-
-This project explores cryptographic primitives designed specifically for efficient integration with modern ZK proving systems.
-
----
-
-Contributing
-
-Contributions are welcome.
-
-If you are interested in:
-
-- cryptography
-- zero-knowledge systems
-- Rust cryptographic engineering
-
-feel free to open issues or pull requests.
-
----
-
-License
-
-MIT License
+### License
+MIT

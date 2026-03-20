@@ -1,0 +1,14 @@
+[package]
+name        = "atlas-multiset-hash"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+atlas-core         = { workspace = true }
+atlas-map-to-curve = { workspace = true }
+ark-ff             = { workspace = true }
+ark-ec             = { workspace = true }
+ark-bn254          = { workspace = true }
+ark-grumpkin       = { workspace = true }
+thiserror          = { workspace = true }

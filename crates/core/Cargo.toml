@@ -1,0 +1,13 @@
+[package]
+name        = "atlas-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ark-ff        = { workspace = true }
+ark-bn254     = { workspace = true }
+ark-serialize = { workspace = true }
+thiserror     = { workspace = true }
+sha2          = { workspace = true }
+zeroize       = { workspace = true }
