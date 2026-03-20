@@ -1,0 +1,17 @@
+[package]
+name        = "atlas-bls"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+atlas-core         = { workspace = true }
+atlas-map-to-curve = { workspace = true }
+ark-ff             = { workspace = true }
+ark-ec             = { workspace = true }
+ark-bn254          = { workspace = true }
+ark-grumpkin       = { workspace = true }
+ark-std            = { workspace = true }
+thiserror          = { workspace = true }
+rand               = { workspace = true }
+sha2               = { workspace = true }

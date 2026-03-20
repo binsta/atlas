@@ -1,0 +1,86 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/map-to-curve",
+    "crates/multiset-hash",
+    "crates/bls",
+    "crates/circuits",
+]
+
+[workspace.package]
+version    = "0.1.0"
+edition    = "2021"
+license    = "MIT"
+authors    = ["ATLAS Contributors"]
+repository = "https://github.com/binsta/atlas"
+
+
+[package]
+name    = "atlas"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+atlas-core          = { workspace = true }
+atlas-map-to-curve  = { workspace = true }
+atlas-multiset-hash = { workspace = true }
+atlas-bls           = { workspace = true }
+atlas-circuits      = { workspace = true }
+rand                = { workspace = true }
+ark-ec              = { workspace = true }
+ark-grumpkin        = { workspace = true }
+criterion           = { workspace = true }
+
+[workspace.dependencies]
+
+# elliptic curves & fields
+ark-ff        = { version = "0.5" }
+ark-ec        = { version = "0.5" }
+ark-bn254     = { version = "0.5" }
+ark-serialize = { version = "0.5" }
+ark-std       = { version = "0.5" }
+ark-grumpkin  = { version = "0.5" }
+
+# internal crates
+atlas-core          = { path = "crates/core" }
+atlas-map-to-curve  = { path = "crates/map-to-curve" }
+atlas-multiset-hash = { path = "crates/multiset-hash" }
+atlas-bls           = { path = "crates/bls" }
+atlas-circuits      = { path = "crates/circuits" }
+
+# utils
+thiserror = "1"
+rand      = "0.8"
+sha2      = "0.10"
+zeroize   = { version = "1", features = ["derive"] }
+
+# dev / benchmarks
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# examples
+[[example]]
+name = "map_to_group"
+path = "examples/map_to_group.rs"
+
+[[example]]
+name = "constraint_cost"
+path = "examples/constraint_cost.rs"
+
+[[example]]
+name = "bls_signature"
+path = "examples/bls_signature.rs"
+
+[[example]]
+name = "zkvm_memory"
+path = "examples/zkvm_memory.rs"
+
+# benchmark
+[[bench]]
+name = "map_to_curve"
+harness = false
+
+[[bench]]
+name = "multiset_hash"
+harness = false
