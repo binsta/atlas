@@ -188,6 +188,7 @@ name = "atlas"
 version = "0.1.0"
 dependencies = [
  "ark-ec",
+ "ark-ff",
  "ark-grumpkin",
  "atlas-bls",
  "atlas-circuits",
@@ -195,6 +196,7 @@ dependencies = [
  "atlas-map-to-curve",
  "atlas-multiset-hash",
  "criterion",
+ "num-bigint",
  "rand",
 ]
 

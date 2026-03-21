@@ -97,6 +97,85 @@ For zkPoS BLS (§6.4):
 ```bash
 cargo test --workspace
 ```
+---
+
+## Circom Integration
+
+ATLAS includes circom circuits and a Rust witness generator for use with
+Groth16 proofs via snarkjs.
+
+### Prerequisites
+
+```bash
+# Install circom
+git clone https://github.com/iden3/circom.git
+cd circom && cargo build --release && cargo install --path circom && cd ..
+
+# Install snarkjs
+npm install -g snarkjs
+```
+
+### Circuit Structure
+
+```bash
+circom/
+├── map_to_curve.circom   ← 3 constraints from Figure 2
+├── multiset_hash.circom  ← N × MapToCurve instances  
+└── main.circom           ← ATLASMemoryCheck(10, 256)
+```
+
+### Constraints
+
+```
+template instances    : 3
+non-linear constraints: 40   (3 per record × 10 + overhead)
+public inputs         : 30   (messages[10] + xs[10] + ys[10])
+private inputs        : 20   (zs[10] + ks[10])
+```
+
+### Run the Full Pipeline
+
+**1. Download Powers of Tau**
+```bash
+cd circom
+wget https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_12.ptau \
+     -O pot12_final.ptau
+```
+
+**2. Compile Circuit**
+```bash
+circom main.circom --r1cs --wasm --sym
+```
+
+**3. Generate Witnesses (Rust → JSON)**
+```bash
+cd ..
+cargo run --example generate_witness
+cd circom
+node main_js/generate_witness.js main_js/main.wasm input.json witness.wtns
+```
+
+**4. Trusted Setup**
+```bash
+snarkjs groth16 setup main.r1cs pot12_final.ptau main_0000.zkey
+snarkjs zkey contribute main_0000.zkey main_0001.zkey \
+        --name="ATLAS" -e="atlas random entropy"
+snarkjs zkey export verificationkey main_0001.zkey verification_key.json
+```
+
+**5. Prove & Verify**
+```bash
+snarkjs groth16 prove main_0001.zkey witness.wtns proof.json public.json
+snarkjs groth16 verify verification_key.json public.json proof.json
+# [INFO] snarkJS: OK! ✅
+```
+
+### Or Run Everything at Once
+
+```bash
+chmod +x circom/run.sh
+./circom/run.sh
+```
 
 ### License
 MIT
