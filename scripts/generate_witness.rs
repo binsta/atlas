@@ -8,9 +8,9 @@
 //! Output:
 //!   circom/input.json  — feed into circom witness generation
 
-use ark_grumpkin::Projective as G;
 use ark_ec::CurveGroup;
 use ark_ff::{BigInteger, PrimeField};
+use ark_grumpkin::Projective as G;
 use atlas_map_to_curve::{IncrementAndCheck, MapToCurveRelation};
 use std::fs;
 
@@ -28,32 +28,31 @@ fn main() {
     println!("=== ATLAS Circom Witness Generator ===\n");
 
     let mapper = IncrementAndCheck::new(256);
-    let n      = 10usize;
+    let n = 10usize;
 
     // Generate N memory records
     // In a real zkVM these would be actual memory access logs
-    let messages: Vec<Fq> = (1u64..=n as u64).map(|i| {
-        // Pack a fake memory record: addr=i*4, val=i*100, write, ts=i
-        let addr     = (i * 4) as u128;
-        let val      = (i * 100) as u128;
-        let is_write = 1u128;
-        let ts       = i as u128;
-        let packed   = addr
-            | (val      << 32)
-            | (is_write << 64)
-            | (ts       << 65);
-        let lo    = packed as u64;
-        let hi    = (packed >> 64) as u64;
-        let two64 = Fq::from(u64::MAX) + Fq::from(1u64);
-        Fq::from(lo) + Fq::from(hi) * two64
-    }).collect();
+    let messages: Vec<Fq> = (1u64..=n as u64)
+        .map(|i| {
+            // Pack a fake memory record: addr=i*4, val=i*100, write, ts=i
+            let addr = (i * 4) as u128;
+            let val = (i * 100) as u128;
+            let is_write = 1u128;
+            let ts = i as u128;
+            let packed = addr | (val << 32) | (is_write << 64) | (ts << 65);
+            let lo = packed as u64;
+            let hi = (packed >> 64) as u64;
+            let two64 = Fq::from(u64::MAX) + Fq::from(1u64);
+            Fq::from(lo) + Fq::from(hi) * two64
+        })
+        .collect();
 
     // Map each message to a Grumpkin point
-    let mut ms_str  = Vec::new();
-    let mut xs_str  = Vec::new();
-    let mut ys_str  = Vec::new();
-    let mut zs_str  = Vec::new();
-    let mut ks_str  = Vec::new();
+    let mut ms_str = Vec::new();
+    let mut xs_str = Vec::new();
+    let mut ys_str = Vec::new();
+    let mut zs_str = Vec::new();
+    let mut ks_str = Vec::new();
 
     println!("Generating witnesses for {} memory records...\n", n);
 
@@ -84,11 +83,31 @@ fn main() {
     "zs":       [{zs}],
     "ks":       [{ks}]
 }}"#,
-        messages = ms_str.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", "),
-        xs       = xs_str.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", "),
-        ys       = ys_str.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", "),
-        zs       = zs_str.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", "),
-        ks       = ks_str.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(", "),
+        messages = ms_str
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<_>>()
+            .join(", "),
+        xs = xs_str
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<_>>()
+            .join(", "),
+        ys = ys_str
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<_>>()
+            .join(", "),
+        zs = zs_str
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<_>>()
+            .join(", "),
+        ks = ks_str
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<_>>()
+            .join(", "),
     );
 
     fs::write("circom/input.json", &json).expect("failed to write input.json");

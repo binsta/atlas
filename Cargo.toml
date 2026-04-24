@@ -10,7 +10,7 @@ members = [
 
 [workspace.package]
 version    = "0.1.0"
-edition    = "2021"
+edition    = "2024"
 license    = "MIT"
 authors    = ["ATLAS Contributors"]
 repository = "https://github.com/binsta/atlas"

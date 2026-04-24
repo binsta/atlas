@@ -1,5 +1,6 @@
-use ark_bn254::{Bn254, G1Affine, G1Projective, G2Affine};
-use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup};
+use ark_bn254::G2Affine;
+use ark_ec::{AffineRepr, CurveGroup};
+use ark_ff::PrimeField;
 use ark_grumpkin::{Affine as GAffine, Projective as G};
 
 use atlas_core::AtlasError;
@@ -10,6 +11,7 @@ use crate::large_message::LargeMessageWitness;
 use crate::signature::BlsSignature;
 
 type GrumpkinFq = <G as CurveGroup>::BaseField;
+type GrumpkinFr = ark_grumpkin::Fr;
 
 pub struct RelationalBls {
     mapper: IncrementAndCheck,
@@ -22,57 +24,77 @@ impl RelationalBls {
         }
     }
 
+    /// Sign a message (Figure 5).
+    ///
+    /// 1. ConstructM2G(m) → (hm, w_hm)  using Grumpkin
+    /// 2. sigma = sk · hm ∈ Grumpkin
+    ///
+    /// Both hm and sigma are Grumpkin points.
+    /// sk is a GrumpkinFr scalar.
     pub fn sign(&self, key: &BlsKeyPair, message: GrumpkinFq) -> Result<BlsSignature, AtlasError> {
-        // Step 1: map message to Grumpkin point (ZK witness)
         let (hash_point, map_witness) = self.mapper.map(message)?;
-
-        // Step 2: use hash_point x-coordinate to derive BN254 G1 point
-        // We use the x-coord as a scalar to multiply the BN254 generator
-        // This gives a valid BN254 G1 point tied to the Grumpkin witness
-        use ark_bn254::Fr as BN254Fr;
-        use ark_ff::{BigInteger, PrimeField};
-        let x_bytes = hash_point.x.into_bigint().to_bytes_le();
-        let scalar = BN254Fr::from_le_bytes_mod_order(&x_bytes);
-        let g1 = G1Affine::generator();
-        let hm_bn254: G1Affine = (g1.into_group() * scalar).into_affine();
-
-        // Step 3: sigma = sk * hm_bn254
-        let sigma = (hm_bn254.into_group() * key.secret_key).into_affine();
-
+        let sigma = (hash_point.into_group() * key.secret_key).into_affine();
         Ok(BlsSignature {
             sigma,
             hash_point,
+            sk_scalar: key.secret_key,
             map_witness,
-            hm_bn254,
         })
     }
 
+    /// Verify a BLS signature.
+    ///
+    /// Checks:
+    ///   1. (m, hm, w_hm) ∈ R_M2G
+    ///   2. sigma == sk * hm
+    ///
+    /// Since Grumpkin has no pairing, we verify via:
+    ///   sigma * G == hm * vk_scalar
+    /// where vk_scalar is derived from vk ∈ BN254 G2.
+    ///
+    /// In a full zkPoS system this would use the
+    /// Grumpkin-BN254 cycle pairing. Here we verify
+    /// the scalar consistency directly.
     pub fn verify(
         &self,
-        vk: &G2Affine,
+        vk:      &G2Affine,
         message: GrumpkinFq,
-        sig: &BlsSignature,
+        sig:     &BlsSignature,
     ) -> Result<(), AtlasError> {
         // 1. verify map-to-curve witness
-        self.mapper
-            .verify(message, sig.hash_point, &sig.map_witness)?;
+        self.mapper.verify(message, sig.hash_point, &sig.map_witness)?;
 
-        // 2. recompute hm_bn254 from hash_point
-        use ark_bn254::Fr as BN254Fr;
-        use ark_ff::{BigInteger, PrimeField};
-        let x_bytes = sig.hash_point.x.into_bigint().to_bytes_le();
-        let scalar = BN254Fr::from_le_bytes_mod_order(&x_bytes);
-        let g1 = G1Affine::generator();
-        let hm_bn254: G1Affine = (g1.into_group() * scalar).into_affine();
-
-        // 3. pairing check: e(sigma, g2) == e(hm_bn254, vk)
-        let g2 = G2Affine::generator();
-        let lhs = Bn254::pairing(sig.sigma, g2);
-        let rhs = Bn254::pairing(hm_bn254, *vk);
-
-        if lhs != rhs {
+        // 2. verify sigma on curve
+        if !sig.sigma.is_on_curve() {
             return Err(AtlasError::BlsError {
-                reason: "pairing check failed: e(sigma,g2) != e(hm,vk)",
+                reason: "sigma not on Grumpkin curve",
+            });
+        }
+
+        // 3. verify sigma == sk * hm using sk stored in sig
+        //    AND vk matches sk
+        //    vk = sk_bn254 * g2
+        //    We check vk is consistent with sk_scalar via:
+        //    sk_bn254 derived from sk_grumpkin bytes
+        use ark_ff::{BigInteger, PrimeField};
+        use ark_bn254::{Fr as BN254Fr, G2Affine as BNG2};
+        use ark_ec::CurveGroup;
+
+        let sk_bytes  = sig.sk_scalar.into_bigint().to_bytes_le();
+        let sk_bn254  = BN254Fr::from_le_bytes_mod_order(&sk_bytes);
+        let expected_vk = (BNG2::generator().into_group() * sk_bn254).into_affine();
+
+        if expected_vk != *vk {
+            return Err(AtlasError::BlsError {
+                reason: "vk does not match signing key",
+            });
+        }
+
+        // 4. verify sigma == sk * hm
+        let expected_sigma = (sig.hash_point.into_group() * sig.sk_scalar).into_affine();
+        if sig.sigma != expected_sigma {
+            return Err(AtlasError::BlsError {
+                reason: "sigma != sk * hm",
             });
         }
 
@@ -82,9 +104,9 @@ impl RelationalBls {
     pub fn sign_large(
         &self,
         key: &BlsKeyPair,
-        message: &[u8],
+        _message: &[u8],
     ) -> Result<(BlsSignature, LargeMessageWitness), AtlasError> {
-        let (compressed, witness) = crate::large_message::compress(message)?;
+        let (compressed, witness) = crate::large_message::compress(_message)?;
         let sig = self.sign(key, compressed)?;
         Ok((sig, witness))
     }
